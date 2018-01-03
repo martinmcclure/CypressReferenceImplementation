@@ -19,7 +19,7 @@ CypCypress1PackageReader class >> withDisk: disk [
 CypCypress1PackageReader >> classDefinitionWithProperties: classPropertiesDict comment: commentString [
 
 	| definition properties |
-	definition := RwClassDefinition new.
+	definition := (GsCurrentSession currentSession resolveSymbol: #RwClassDefinition) new.
 	properties := classPropertiesDict copy.
 	properties at: 'comment' put: commentString.
 	definition properties: properties.
@@ -62,7 +62,7 @@ CypCypress1PackageReader >> readClassPropertiesFromDirectoryEntries: entries [
 	properties := disk
 				readStreamFor: (entries detect: [:entry | self isPropertiesFilePath: entry]
 						ifNone: [Dictionary new])
-				do: [:fileStream | CypressJsonParser parseStream: fileStream].
+				do: [:fileStream | CodeLibrarian new _librarian objectNamed: #CypressJsonParser parseStream: fileStream].
 	self sortVariablesOf: properties.
 	^properties
 ]
@@ -85,9 +85,9 @@ CypCypress1PackageReader >> readMethodDefinitionFrom: aStream [
 		ifTrue: [aStream nextLine]
 		ifFalse: [self error: 'Method does not have valid Cypress format'].
 	source := aStream upToEnd.
-	selector := Rowan platform parseSelectorFrom: source.
+	selector := (GsCurrentSession currentSession resolveSymbol: #Rowan) platform parseSelectorFrom: source.
 	properties at: 'selector' put: selector.
-	^RwMethodDefinition withProperties: properties source: source
+	^(GsCurrentSession currentSession resolveSymbol: #RwMethodDefinition) withProperties: properties source: source
 ]
 
 { #category : 'private' }
@@ -117,7 +117,7 @@ CypCypress1PackageReader >> readMethodDefinitionsFor: classDefinition in: entrie
 CypCypress1PackageReader >> readPackageDefinitionFromDirectory: fullPath [
 
 	| packageDefinition |
-	packageDefinition := RwPackageDefinition new.
+	packageDefinition := (GsCurrentSession currentSession resolveSymbol: #RwPackageDefinition) new.
 	(disk directoryEntriesFrom: fullPath) do: 
 			[:entry |
 			(self isPropertiesFilePath: entry)
@@ -139,7 +139,7 @@ CypCypress1PackageReader >> readPackageDefinitionFromDirectory: fullPath [
 CypCypress1PackageReader >> readPropertiesFileFromPath: aPath [
 
 	^disk readStreamFor: aPath
-		do: [:stream | CypressJsonParser parseStream: stream]
+		do: [:stream | CodeLibrarian new _librarian objectNamed: #CypressJsonParser parseStream: stream]
 ]
 
 { #category : 'private' }

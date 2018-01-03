@@ -41,5 +41,5 @@ CypCypress1Repository >> propertiesFileName [
 CypCypress1Repository >> propertiesParserClass [
 	"TODO: This should be a STON-specific parser"
 
-	^CypressJsonParser
+	^CodeLibrarian new _librarian objectNamed: #CypressJsonParser
 ]

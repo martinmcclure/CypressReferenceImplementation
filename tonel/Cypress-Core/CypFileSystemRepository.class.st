@@ -56,7 +56,7 @@ CypFileSystemRepository >> initializeRepositoryDirectory [
 CypFileSystemRepository >> initializeUrl: anUrl [
 
 	super initializeUrl: anUrl.
-	disk := Rowan fileUtilities.
+	disk := (GsCurrentSession currentSession resolveSymbol: #Rowan) fileUtilities.
 	self initializeRepositoryDirectory.
 	self readPropertiesFile
 ]
