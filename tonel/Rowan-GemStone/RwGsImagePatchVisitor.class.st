@@ -20,25 +20,18 @@ RwGsImagePatchVisitor class >> new [
 ]
 
 { #category : 'private' }
+RwGsImagePatchVisitor >> _patchSetClass [
+
+	^ RwGsPatchSetBasic
+]
+
+{ #category : 'private' }
 RwGsImagePatchVisitor >> addAddedPackage: aPackageDefinition [
 
 	currentPackage := aPackageDefinition.
 	patchSet addAddedPackage: currentPackage.
 	self addClasses: currentPackage classDefinitions.
-	aPackageDefinition classExtensions do: 
-			[:classExtension |
-			classExtension classMethodDefinitions do: 
-					[:classMethodDefinition |
-					patchSet
-						addAddedClassMethod: classMethodDefinition
-						inClass: classExtension
-						inPackage: aPackageDefinition].
-			classExtension instanceMethodDefinitions do: 
-					[:instanceMethodDefinition |
-					patchSet
-						addAddedInstanceMethod: instanceMethodDefinition
-						inClass: classExtension
-						inPackage: aPackageDefinition]]
+	self addClassExtensions: currentPackage classExtensions
 ]
 
 { #category : 'private' }
@@ -57,6 +50,26 @@ RwGsImagePatchVisitor >> addClasses: classDefinitions [
 					[:instanceMethodDefinition |
 					patchSet
 						addAddedInstanceMethod: instanceMethodDefinition
+						inClass: classDefinition
+						inPackage: currentPackage]]
+]
+
+{ #category : 'private' }
+RwGsImagePatchVisitor >> addClassExtensions: classExtensions [
+
+	classExtensions do: 
+			[:classDefinition |
+			patchSet addExtendedClass: classDefinition inPackage: currentPackage.
+			classDefinition classMethodDefinitions do: 
+					[:classMethodDefinition |
+					patchSet
+						addExtendedClassMethod: classMethodDefinition
+						inClass: classDefinition
+						inPackage: currentPackage].
+			classDefinition instanceMethodDefinitions do: 
+					[:instanceMethodDefinition |
+					patchSet
+						addExtendedInstanceMethod: instanceMethodDefinition
 						inClass: classDefinition
 						inPackage: currentPackage]]
 ]
@@ -115,7 +128,7 @@ RwGsImagePatchVisitor >> deletePackages: packageDefinitions [
 { #category : 'initialization' }
 RwGsImagePatchVisitor >> initialize [
 
-	patchSet := RwGsPatchSet new
+	patchSet := self _patchSetClass new
 ]
 
 { #category : 'accessing' }
@@ -140,7 +153,8 @@ RwGsImagePatchVisitor >> visitClassesModification: aClassesModification [
 { #category : 'visting' }
 RwGsImagePatchVisitor >> visitClassExtensionsModification: aClassModification [
 
-	self halt
+	aClassModification isEmpty
+		ifFalse: [ self halt ]
 ]
 
 { #category : 'visting' }
@@ -162,6 +176,14 @@ RwGsImagePatchVisitor >> visitMethodModification: aMethodModification [
 		addModificationToPatchSet: patchSet 
 		inPackage: currentPackage.
 
+]
+
+{ #category : 'visting' }
+RwGsImagePatchVisitor >> visitMethodModificationForNewClassVersion: aMethodModification [
+
+	aMethodModification
+		addModificationToPatchSetForNewClassVersion: patchSet
+		inPackage: currentPackage
 ]
 
 { #category : 'visting' }

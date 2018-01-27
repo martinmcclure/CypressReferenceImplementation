@@ -82,9 +82,9 @@ RwGsPatchSet >> addAndUpdateLoadedPackages [
 { #category : 'private - applying' }
 RwGsPatchSet >> addCreatedClassesAndVersionsTo: newClassesByName [
 
-	addedClasses do: [:each | each addToDictionary: newClassesByName].
+	addedClasses do: [:each | each addToNewClassesByName: newClassesByName].
 	classesWithNewVersions
-		do: [:each | each addToDictionary: newClassesByName]
+		do: [:each | each addToNewClassesByName: newClassesByName]
 ]
 
 { #category : 'building' }
@@ -144,6 +144,20 @@ RwGsPatchSet >> addPatchedClassMethodProperties: aClassMethodDefinition inClass:
 				isMeta: true
 				inClass: aClassDefinition
 				inPackage: aPackageDefinition)
+]
+
+{ #category : 'building' }
+RwGsPatchSet >> addPatchedClassNewVersion: aClassModification inPackage: aPackageDefinition [
+
+	classesWithNewVersions
+		add: (RwGsClassVersioningPatch for: aClassModification inPackage: aPackageDefinition)
+]
+
+{ #category : 'building' }
+RwGsPatchSet >> addPatchedClassProperties: aClassDefinition inPackage: aPackageDefinition [
+
+	classesWithPropertyChanges
+		add: (RwGsClassPropertiesPatch for: aClassDefinition inPackage: aPackageDefinition)
 ]
 
 { #category : 'building' }
@@ -440,8 +454,8 @@ RwGsPatchSet >> updateClassProperties [
 	"For classes with changes that don't require versioning, 
 	update the properties in the class and the LoadedClasses as appropriate."
 
-"*** Should also update properties of added and versioned classes here?***"
-	classesWithPropertyChanges do: [:each | each halt: 'Not yet implemented.']
+	classesWithPropertyChanges do: [:each | 
+		each installPropertiesPatchNewClasses: createdClasses andExistingClasses: tempSymbols ]
 ]
 
 { #category : 'private - applying' }
@@ -475,5 +489,5 @@ RwGsPatchSet >> updateMethodProperties [
 RwGsPatchSet >> updateSymbolAssociations [
 	"Install new class versions."
 
-	classesWithNewVersions do: [:each | each halt: 'Not yet implemented.']
+	classesWithNewVersions do: [:each | each installNewClassVerionInSystem ]
 ]

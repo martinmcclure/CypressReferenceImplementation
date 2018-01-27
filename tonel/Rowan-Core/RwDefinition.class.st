@@ -35,10 +35,26 @@ RwDefinition >> addDefinition: aDefinition to: aDictionary [
 	aDictionary at: key put: aDefinition
 ]
 
+{ #category : 'converting' }
+RwDefinition >> asDefinition [
+  ^ self
+]
+
 { #category : 'comparing' }
 RwDefinition >> compareAgainstBase: aDefinition [
 	"Diff myself for changes against the given base definition. 
 	Answer a Modification, which might be empty if there are no changes."
+
+	self subclassResponsibility
+]
+
+{ #category : 'comparing' }
+RwDefinition >> compareAgainstBaseForNewClassVersion: aBaseDefinition [
+
+	"Diff myself for changes against the given base definition. 
+	Answer a Modification, which might be empty if there are no changes."
+
+	"Filter the definition to include changes that are only applicable to new class versions"
 
 	self subclassResponsibility
 ]

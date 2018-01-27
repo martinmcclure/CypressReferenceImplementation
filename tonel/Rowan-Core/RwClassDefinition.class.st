@@ -25,6 +25,12 @@ RwClassDefinition class >> withProperties: propertiesDictionary classMethodDefin
 		yourself
 ]
 
+{ #category : 'private' }
+RwClassDefinition >> _modificationClass [
+
+	^ RwClassModification
+]
+
 { #category : 'accessing' }
 RwClassDefinition >> addClassMethodDefinition: aMethodDefinition [
 
@@ -70,7 +76,7 @@ RwClassDefinition >> classType [
 RwClassDefinition >> compareAgainstBase: aDefinition [
 
 	| modification instanceMethodsModification classMethodsModification |
-	modification := RwClassModification before: aDefinition after: self.
+	modification := self _modificationClass before: aDefinition after: self.
 	modification
 		propertiesModification: (self comparePropertiesAgainstBase: aDefinition).
 	instanceMethodsModification := RwMethodsModification new.
@@ -94,6 +100,37 @@ RwClassDefinition >> compareAgainstBase: aDefinition [
 ]
 
 { #category : 'comparing' }
+RwClassDefinition >> compareAgainstBaseForNewClassVersion: aDefinition [
+
+	"all unchanged and unremoved methods need to be applied to the patch"
+
+	| modification instanceMethodsModification classMethodsModification |
+	modification := self _modificationClass before: aDefinition after: self.
+	false
+		ifTrue: [ 
+			modification
+				propertiesModification: (self comparePropertiesAgainstBase: aDefinition) ].
+	instanceMethodsModification := RwMethodsModification new.
+	classMethodsModification := RwMethodsModification new.
+	self
+		compareDictionary: instanceMethodDefinitions
+		againstBaseDictionaryForNewClassVersion: aDefinition instanceMethodDefinitions
+		into: instanceMethodsModification
+		elementClass: RwMethodDefinition
+		isMeta: false.
+	self
+		compareDictionary: classMethodDefinitions
+		againstBaseDictionaryForNewClassVersion: aDefinition classMethodDefinitions
+		into: classMethodsModification
+		elementClass: RwMethodDefinition
+		isMeta: true.
+	modification
+		instanceMethodsModification: instanceMethodsModification;
+		classMethodsModification: classMethodsModification.
+	^ modification
+]
+
+{ #category : 'comparing' }
 RwClassDefinition >> compareDictionary: myDictionary againstBaseDictionary: baseDictionary into: anElementsModification elementClass: elementClass isMeta: isClassMeta [
 
 	| keys |
@@ -110,6 +147,35 @@ RwClassDefinition >> compareDictionary: myDictionary againstBaseDictionary: base
 				classDefinition: self.
 			modification isEmpty
 				ifFalse: [anElementsModification addElementModification: modification]]
+]
+
+{ #category : 'comparing' }
+RwClassDefinition >> compareDictionary: myDictionary againstBaseDictionaryForNewClassVersion: baseDictionary into: anElementsModification elementClass: elementClass isMeta: isClassMeta [
+
+	| keys |
+	keys := myDictionary keys copy.
+	keys addAll: baseDictionary keys.
+	keys
+		do: [ :key | 
+			(baseDictionary
+				at: key
+				ifAbsent: [ 
+					"additions do not apply for new class version - the original modification should not be changed"
+					 ])
+				ifNotNil: [ :before | 
+					(myDictionary
+						at: key
+						ifAbsent: [ 
+							"deletions do not apply for new class version - the original modification should not be changed"
+							 ])
+						ifNotNil: [ :after | 
+							| modification |
+							modification := after compareAgainstBaseForNewClassVersion: before.
+							modification
+								isMeta: isClassMeta;
+								classDefinition: self.
+							modification isEmpty
+								ifFalse: [ anElementsModification addElementModification: modification ] ] ] ]
 ]
 
 { #category : 'initialization' }

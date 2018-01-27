@@ -8,7 +8,10 @@ Object
 "
 Class {
 	#name : 'RwLoadingTest',
-	#superclass : 'TestCase',
+	#superclass : 'RwAbstractTest',
+	#classVars : [
+		'PoolDictionaryDictionary'
+	],
 	#category : 'Rowan-Tests'
 }
 
@@ -16,6 +19,31 @@ Class {
 RwLoadingTest class >> debug [
 
 	^self allTestSelectors do: [:selector | self debug: selector]
+]
+
+{ #category : 'initlization' }
+RwLoadingTest class >> initialize [
+	"self initialize"
+
+	"cannot create useful pool dictionaries on the fly, so need  a set of 
+	 canonical pool dictionaries."
+
+	PoolDictionaryDictionary := Dictionary new.
+	{(SymbolDictionary new
+		at: #'Carrot1' put: 1;
+		at: #'Radish1' put: 2;
+		name: #'PoolDictionary1';
+		yourself).
+	(SymbolDictionary new
+		at: #'Carrot2' put: 1;
+		at: #'Radish2' put: 2;
+		name: #'PoolDictionary2';
+		yourself).
+	(SymbolDictionary new
+		at: #'Carrot3' put: 1;
+		at: #'Radish3' put: 2;
+		name: #'PoolDictionary3';
+		yourself)} do: [ :pd | PoolDictionaryDictionary at: pd name put: pd ]
 ]
 
 { #category : 'running' }
@@ -50,7 +78,22 @@ RwLoadingTest >> accessorMethodsForSimpleClassNamed: name [
 { #category : 'support' }
 RwLoadingTest >> applyDiffToImage: aPackageSetModification [
 
-	Rowan image applyModification: aPackageSetModification
+	"work out the process handling that is needed in the face of new class versions"
+
+	| visitor patchSet |
+	visitor := RwGsImagePatchVisitor new.
+	visitor visit: aPackageSetModification.
+	patchSet := visitor patchSet.
+	patchSet classesWithNewVersions isEmpty
+		ifTrue: [ 
+			patchSet apply.
+			^ self ].
+	patchSet classesWithNewVersions
+		do: [ :each | each newClassVersionPatches: aPackageSetModification patchSet: nil ].
+	visitor := RwGsImagePatchVisitor new.
+	visitor visit: aPackageSetModification.
+	patchSet := visitor patchSet.
+	patchSet apply
 ]
 
 { #category : 'support' }
@@ -148,6 +191,56 @@ RwLoadingTest >> basicPackageDefinition: packageName [
     classExtensions: Dictionary new
 ]
 
+{ #category : 'support - classExtensions definitions' }
+RwLoadingTest >> classExtentionsInstanceMethodsForClass2: className inPackage: packageName [
+
+	^ self
+		methodDefsFromSpec:
+			{{#'foo'.
+			'*', packageName.
+			'foo ^ ''foo'''}}
+]
+
+{ #category : 'support - classExtensions definitions' }
+RwLoadingTest >> classExtionsClassDefinitions1: packageName className: className in: classDefinitionDictionary [
+
+	"Class extension methods"
+
+	^ classDefinitionDictionary
+		at: className
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: className
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		yourself
+]
+
+{ #category : 'support - classExtensions definitions' }
+RwLoadingTest >> classExtionsClassDefinitions2: packageName className: className in: classDefinitionDictionary [
+
+	"Class extension methods"
+
+	^ classDefinitionDictionary
+		at: className
+			put:
+				(RwClassExtensionDefinition
+						withProperties: (self propertiesForClassExtensionNamed: className)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions:
+							(self classExtentionsInstanceMethodsForClass2: className inPackage: packageName));
+		yourself
+]
+
 { #category : 'support - classInitialization definitions' }
 RwLoadingTest >> classInitializationClassMethodsForClass1: className [
   ^ self
@@ -204,6 +297,122 @@ RwLoadingTest >> classInitializePackageDefinition: packageName className: classN
     classExtensions: Dictionary new
 ]
 
+{ #category : 'support - classInstVarChanges definitions' }
+RwLoadingTest >> classInstVarChangeClassDefinitions1: packageName in: classDefinitionDictionary [
+	"Class Inst Var Changes: "
+
+	^ classDefinitionDictionary
+		at: 'TestClassInstVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestClassInstVarClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		yourself
+]
+
+{ #category : 'support - classInstVarChanges definitions' }
+RwLoadingTest >> classInstVarChangeClassDefinitions2: packageName in: classDefinitionDictionary [
+	"Class Inst Var Changes: add classInstVar1"
+
+	^ classDefinitionDictionary
+		at: 'TestClassInstVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestClassInstVarClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {'classInstVar1'}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		yourself
+]
+
+{ #category : 'support - classInstVarChanges definitions' }
+RwLoadingTest >> classInstVarChangeClassDefinitions3: packageName in: classDefinitionDictionary [
+	"Class Inst Var Changes: add classInstVar2"
+
+	^ classDefinitionDictionary
+		at: 'TestClassInstVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestClassInstVarClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars:
+									{'classInstVar1'.
+									'classInstVar2'}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		yourself
+]
+
+{ #category : 'support - classInstVarChanges definitions' }
+RwLoadingTest >> classInstVarChangeClassDefinitions4: packageName in: classDefinitionDictionary [
+	"Class Inst Var Changes: add classInstVar3 and remove classInstVar1"
+
+	^ classDefinitionDictionary
+		at: 'TestClassInstVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestClassInstVarClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars:
+									{'classInstVar2'.
+									'classInstVar3'}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		yourself
+]
+
+{ #category : 'support - classInstVarChanges definitions' }
+RwLoadingTest >> classInstVarChangesClassDefinitions1: packageName [
+	^ self classInstVarChangeClassDefinitions1: packageName in: Dictionary new
+]
+
+{ #category : 'support - classInstVarChanges definitions' }
+RwLoadingTest >> classInstVarChangesClassDefinitions2: packageName [
+	^ self classInstVarChangeClassDefinitions2: packageName in: Dictionary new
+]
+
+{ #category : 'support - classInstVarChanges definitions' }
+RwLoadingTest >> classInstVarChangesClassDefinitions3: packageName [
+	^ self classInstVarChangeClassDefinitions3: packageName in: Dictionary new
+]
+
+{ #category : 'support - classInstVarChanges definitions' }
+RwLoadingTest >> classInstVarChangesClassDefinitions4: packageName [
+	^ self classInstVarChangeClassDefinitions4: packageName in: Dictionary new
+]
+
 { #category : 'support - classProperyChange definitions' }
 RwLoadingTest >> classPropertyChangeClassDefinitions1: packageName [
   ^ self classPropertyChangeClassDefinitions1: packageName in: Dictionary new
@@ -211,98 +420,40 @@ RwLoadingTest >> classPropertyChangeClassDefinitions1: packageName [
 
 { #category : 'support - classProperyChange definitions' }
 RwLoadingTest >> classPropertyChangeClassDefinitions1: packageName in: classDefinitionDictionary [
-  ^ classDefinitionDictionary
-    at: 'TestAddInstVarClass'
-      put:
-        (RwClassDefinition
-            withProperties:
-              (self
-                propertiesForClassNamed: 'TestAddInstVarClass'
-                super: 'Object'
-                instvars: {}
-                classinstvars: {}
-                classvars: {}
-                comment: 'a comment'
-                pools: {}
-                inPackage: packageName)
-            classMethodDefinitions: Dictionary new
-            instanceMethodDefinitions: Dictionary new);
-    at: 'TestAddClassInstVarClass'
-      put:
-        (RwClassDefinition
-            withProperties:
-              (self
-                propertiesForClassNamed: 'TestAddClassInstVarClass'
-                super: 'Object'
-                instvars: {}
-                classinstvars: {}
-                classvars: {}
-                comment: 'a comment'
-                pools: {}
-                inPackage: packageName)
-            classMethodDefinitions: Dictionary new
-            instanceMethodDefinitions: Dictionary new);
-    at: 'TestAddClassVarClass'
-      put:
-        (RwClassDefinition
-            withProperties:
-              (self
-                propertiesForClassNamed: 'TestAddClassVarClass'
-                super: 'Object'
-                instvars: {}
-                classinstvars: {}
-                classvars: {}
-                comment: 'a comment'
-                pools: {}
-                inPackage: packageName)
-            classMethodDefinitions: Dictionary new
-            instanceMethodDefinitions: Dictionary new);
-    at: 'TestChangeSuperclassClass'
-      put:
-        (RwClassDefinition
-            withProperties:
-              (self
-                propertiesForClassNamed: 'TestChangeSuperclassClass'
-                super: 'Object'
-                instvars: {'instVar1'}
-                classinstvars: {}
-                classvars: {}
-                comment: 'a comment'
-                pools: {}
-                inPackage: packageName)
-            classMethodDefinitions: Dictionary new
-            instanceMethodDefinitions: Dictionary new);
-    at: 'TestChangeCommentClass'
-      put:
-        (RwClassDefinition
-            withProperties:
-              (self
-                propertiesForClassNamed: 'TestChangeCommentClass'
-                super: 'Object'
-                instvars: {}
-                classinstvars: {}
-                classvars: {}
-                comment: 'a comment'
-                pools: {}
-                inPackage: packageName)
-            classMethodDefinitions: Dictionary new
-            instanceMethodDefinitions: Dictionary new);
-    at: 'TestChangePoolsClass'
-      put:
-        (RwClassDefinition
-            withProperties:
-              (self
-                propertiesForClassNamed: 'TestChangePoolsClass'
-                super: 'Object'
-                instvars: {}
-                classinstvars: {}
-                classvars: {}
-                comment: 'a comment'
-                pools: {}
-                inPackage: packageName)
-            classMethodDefinitions: Dictionary new
-            instanceMethodDefinitions: Dictionary new);
-    yourself
+	"Class Property Changes that do not result in new class versions "
+
+	^ classDefinitionDictionary
+		at: 'TestAddClassVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestAddClassVarClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		at: 'TestChangeCommentClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestChangeCommentClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		yourself
 ]
 
 { #category : 'support - classProperyChange definitions' }
@@ -312,98 +463,464 @@ RwLoadingTest >> classPropertyChangeClassDefinitions2: packageName [
 
 { #category : 'support - classProperyChange definitions' }
 RwLoadingTest >> classPropertyChangeClassDefinitions2: packageName in: classDefinitionDictionary [
-  ^ classDefinitionDictionary
-    at: 'TestAddInstVarClass'
-      put:
-        (RwClassDefinition
-            withProperties:
-              (self
-                propertiesForClassNamed: 'TestAddInstVarClass'
-                super: 'Object'
-                instvars: {'instVar1'}
-                classinstvars: {}
-                classvars: {}
-                comment: 'a comment'
-                pools: {}
-                inPackage: packageName)
-            classMethodDefinitions: Dictionary new
-            instanceMethodDefinitions: Dictionary new);
-    at: 'TestAddClassInstVarClass'
-      put:
-        (RwClassDefinition
-            withProperties:
-              (self
-                propertiesForClassNamed: 'TestAddClassInstVarClass'
-                super: 'Object'
-                instvars: {}
-                classinstvars: {'classInstVar1'}
-                classvars: {}
-                comment: 'a comment'
-                pools: {}
-                inPackage: packageName)
-            classMethodDefinitions: Dictionary new
-            instanceMethodDefinitions: Dictionary new);
-    at: 'TestAddClassVarClass'
-      put:
-        (RwClassDefinition
-            withProperties:
-              (self
-                propertiesForClassNamed: 'TestAddClassVarClass'
-                super: 'Object'
-                instvars: {}
-                classinstvars: {}
-                classvars: {'ClassVar1'}
-                comment: 'a comment'
-                pools: {}
-                inPackage: packageName)
-            classMethodDefinitions: Dictionary new
-            instanceMethodDefinitions: Dictionary new);
-    at: 'TestChangeSuperclassClass'
-      put:
-        (RwClassDefinition
-            withProperties:
-              (self
-                propertiesForClassNamed: 'TestChangeSuperclassClass'
-                super: 'Association'
-                instvars: {}
-                classinstvars: {}
-                classvars: {}
-                comment: 'a comment'
-                pools: {}
-                inPackage: packageName)
-            classMethodDefinitions: Dictionary new
-            instanceMethodDefinitions: Dictionary new);
-    at: 'TestChangeCommentClass'
-      put:
-        (RwClassDefinition
-            withProperties:
-              (self
-                propertiesForClassNamed: 'TestChangeCommentClass'
-                super: 'Object'
-                instvars: {}
-                classinstvars: {}
-                classvars: {}
-                comment: 'a new comment'
-                pools: {}
-                inPackage: packageName)
-            classMethodDefinitions: Dictionary new
-            instanceMethodDefinitions: Dictionary new);
-    at: 'TestChangePoolsClass'
-      put:
-        (RwClassDefinition
-            withProperties:
-              (self
-                propertiesForClassNamed: 'TestChangePoolsClass'
-                super: 'Object'
-                instvars: {}
-                classinstvars: {}
-                classvars: {}
-                comment: 'a comment'
-                pools: {}
-                inPackage: packageName)
-            classMethodDefinitions: Dictionary new
-            instanceMethodDefinitions: Dictionary new);
-    yourself
+	"Class Property Changes that do not result in new class versions "
+
+	^ classDefinitionDictionary
+		at: 'TestAddClassVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestAddClassVarClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars: {'ClassVar1'}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		at: 'TestChangeCommentClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestChangeCommentClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a new comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		yourself
+]
+
+{ #category : 'support - classVarChanges definitions' }
+RwLoadingTest >> classVarChangeClassDefinitions1: packageName in: classDefinitionDictionary [
+	"Class Var Changes: "
+
+	^ classDefinitionDictionary
+		at: 'TestClassVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestClassVarClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		yourself
+]
+
+{ #category : 'support - classVarChanges definitions' }
+RwLoadingTest >> classVarChangeClassDefinitions2: packageName in: classDefinitionDictionary [
+	"Class Var Changes: add ClassVar1"
+
+	^ classDefinitionDictionary
+		at: 'TestClassVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestClassVarClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars: {'ClassVar1'}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		yourself
+]
+
+{ #category : 'support - classVarChanges definitions' }
+RwLoadingTest >> classVarChangeClassDefinitions3: packageName in: classDefinitionDictionary [
+	"Class Var Changes: add ClassVar2"
+
+	^ classDefinitionDictionary
+		at: 'TestClassVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestClassVarClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars:
+									{'ClassVar1'.
+									'ClassVar2'}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		yourself
+]
+
+{ #category : 'support - classVarChanges definitions' }
+RwLoadingTest >> classVarChangeClassDefinitions4: packageName in: classDefinitionDictionary [
+	"Class Var Changes: add ClassVar3 and remove ClassVar1"
+
+	^ classDefinitionDictionary
+		at: 'TestClassVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestClassVarClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars:
+									{'ClassVar2'.
+									'ClassVar3'}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		yourself
+]
+
+{ #category : 'support - classVarChanges definitions' }
+RwLoadingTest >> classVarChangesClassDefinitions1: packageName [
+	^ self classVarChangeClassDefinitions1: packageName in: Dictionary new
+]
+
+{ #category : 'support - classVarChanges definitions' }
+RwLoadingTest >> classVarChangesClassDefinitions2: packageName [
+	^ self classVarChangeClassDefinitions2: packageName in: Dictionary new
+]
+
+{ #category : 'support - classVarChanges definitions' }
+RwLoadingTest >> classVarChangesClassDefinitions3: packageName [
+	^ self classVarChangeClassDefinitions3: packageName in: Dictionary new
+]
+
+{ #category : 'support - classVarChanges definitions' }
+RwLoadingTest >> classVarChangesClassDefinitions4: packageName [
+	^ self classVarChangeClassDefinitions4: packageName in: Dictionary new
+]
+
+{ #category : 'support - classVersionChanges' }
+RwLoadingTest >> classVersionChangeAssociationInstanceMethodsForClass3: className [
+	^ self
+		methodDefsFromSpec:
+			{{#'customValue'.
+			'accessing'.
+			'customValue ^value'}}
+]
+
+{ #category : 'support - classVersionChanges' }
+RwLoadingTest >> classVersionChangeClassDefinitions1: packageName [
+	^ self classVersionChangeClassDefinitions1: packageName in: Dictionary new
+]
+
+{ #category : 'support - classVersionChanges' }
+RwLoadingTest >> classVersionChangeClassDefinitions1: packageName in: classDefinitionDictionary [
+	"Class Property Changes that result in new class versions "
+
+	^ classDefinitionDictionary
+		at: 'TestAddInstVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestAddInstVarClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		at: 'TestAddClassInstVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestAddClassInstVarClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		at: 'TestAddClassVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestAddClassVarClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		at: 'TestChangeSuperclassClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestChangeSuperclassClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		at: 'TestChangePoolsClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestChangePoolsClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		yourself
+]
+
+{ #category : 'support - classVersionChanges' }
+RwLoadingTest >> classVersionChangeClassDefinitions2: packageName [
+	^ self classVersionChangeClassDefinitions2: packageName in: Dictionary new
+]
+
+{ #category : 'support - classVersionChanges' }
+RwLoadingTest >> classVersionChangeClassDefinitions2: packageName in: classDefinitionDictionary [
+	"Class Property Changes that result in new class versions "
+
+	^ classDefinitionDictionary
+		at: 'TestAddInstVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestAddInstVarClass'
+								super: 'Object'
+								instvars: {'instVar1'}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		at: 'TestAddClassInstVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestAddClassInstVarClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {'classInstVar1'}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		at: 'TestAddClassVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestAddClassVarClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars: {'ClassVar1'}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		at: 'TestChangeSuperclassClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestChangeSuperclassClass'
+								super: 'Association'
+								instvars: {}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		at: 'TestChangePoolsClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestChangePoolsClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		yourself
+]
+
+{ #category : 'support - classVersionChanges' }
+RwLoadingTest >> classVersionChangeClassDefinitions3: packageName [
+	^ self classVersionChangeClassDefinitions3: packageName in: Dictionary new
+]
+
+{ #category : 'support - classVersionChanges' }
+RwLoadingTest >> classVersionChangeClassDefinitions3: packageName in: classDefinitionDictionary [
+	"Class Property Changes that result in new class versions "
+
+	"add methods that reference the new class properties"
+
+	^ classDefinitionDictionary
+		at: 'TestAddInstVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestAddInstVarClass'
+								super: 'Object'
+								instvars: {'instVar1'}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions:
+							(self classVersionChangeInstVarMethodsForClass3: 'TestAddInstVarClass'));
+		at: 'TestAddClassInstVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestAddClassInstVarClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {'classInstVar1'}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions:
+							(self classVersionChangeClassInstVarMethodsForClass3: 'TestAddInstVarClass')
+						instanceMethodDefinitions: Dictionary new);
+		at: 'TestAddClassVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestAddClassVarClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars: {'ClassVar1'}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions:
+							(self classVersionChangeClassVarMethodsForClass3: 'TestAddClassVarClass')
+						instanceMethodDefinitions: Dictionary new);
+		at: 'TestChangeSuperclassClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestChangeSuperclassClass'
+								super: 'Association'
+								instvars: {}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions:
+							(self
+								classVersionChangeAssociationInstanceMethodsForClass3:
+									'TestChangeSuperclassClass'));
+		at: 'TestChangePoolsClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestChangePoolsClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		yourself
+]
+
+{ #category : 'support - classVersionChanges' }
+RwLoadingTest >> classVersionChangeClassInstVarMethodsForClass3: className [
+	^ self
+		methodDefsFromSpec:
+			{{#'classInstVar1'.
+			'accessing'.
+			'classInstVar1 ^classInstVar1'}}
+]
+
+{ #category : 'support - classVersionChanges' }
+RwLoadingTest >> classVersionChangeClassVarMethodsForClass3: className [
+	^ self
+		methodDefsFromSpec:
+			{{#'classVar1'.
+			'accessing'.
+			'classVar1 ^ClassVar1'}}
+]
+
+{ #category : 'support - classVersionChanges' }
+RwLoadingTest >> classVersionChangeInstVarMethodsForClass3: className [
+	^ self
+		methodDefsFromSpec:
+			{{#'instVar1'.
+			'accessing'.
+			'instVar1 ^instVar1'}}
 ]
 
 { #category : 'support - combined definitions' }
@@ -498,7 +1015,9 @@ RwLoadingTest >> definitionOfBasicClassNamed: className type: classType instvars
 RwLoadingTest >> definitionOfClassInitializationClassNamed: className inPackage: packageName classMethodDefinitions: classMethodDefinitions [
   ^ RwClassDefinition
     withProperties:
-      (self properiesOfClassInitializationClassNamed: className inPackage: packageName)
+      (self
+        propertiesOfClassInitializationClassNamed: className
+        inPackage: packageName)
     classMethodDefinitions: classMethodDefinitions
     instanceMethodDefinitions: Dictionary new
 ]
@@ -539,10 +1058,126 @@ RwLoadingTest >> definitionOfSimpleClassNamed: name inPackage: packageName [
 		instanceMethodDefinitions: (self accessorMethodsForSimpleClassNamed: name)
 ]
 
-{ #category : 'support' }
-RwLoadingTest >> definitionsOfLoadedPackages: packageNames [
+{ #category : 'running' }
+RwLoadingTest >> expectedFailures [
 
-	^(Rowan loadedPackagesNamed: packageNames) asDefinition
+	^ {#'testPoolDictionaryChanges'}
+]
+
+{ #category : 'support - instVarChanges definitions' }
+RwLoadingTest >> instVarChangeClassDefinitions1: packageName in: classDefinitionDictionary [
+	"Inst Var Changes: "
+
+	^ classDefinitionDictionary
+		at: 'TestInstVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestInstVarClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		yourself
+]
+
+{ #category : 'support - instVarChanges definitions' }
+RwLoadingTest >> instVarChangeClassDefinitions2: packageName in: classDefinitionDictionary [
+	"Inst Var Changes: add instVar1"
+
+	^ classDefinitionDictionary
+		at: 'TestInstVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestInstVarClass'
+								super: 'Object'
+								instvars: {'instVar1'}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		yourself
+]
+
+{ #category : 'support - instVarChanges definitions' }
+RwLoadingTest >> instVarChangeClassDefinitions3: packageName in: classDefinitionDictionary [
+	"Inst Var Changes: add instVar2"
+
+	^ classDefinitionDictionary
+		at: 'TestInstVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestInstVarClass'
+								super: 'Object'
+								instvars:
+									{'instVar1'.
+									'instVar2'}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		yourself
+]
+
+{ #category : 'support - instVarChanges definitions' }
+RwLoadingTest >> instVarChangeClassDefinitions4: packageName in: classDefinitionDictionary [
+	"Inst Var Changes: add instVar3 and remove instVar1"
+
+	^ classDefinitionDictionary
+		at: 'TestInstVarClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestInstVarClass'
+								super: 'Object'
+								instvars:
+									{'instVar2'.
+									'instVar3'}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		yourself
+]
+
+{ #category : 'support - instVarChanges definitions' }
+RwLoadingTest >> instVarChangesClassDefinitions1: packageName [
+	^ self instVarChangeClassDefinitions1: packageName in: Dictionary new
+]
+
+{ #category : 'support - instVarChanges definitions' }
+RwLoadingTest >> instVarChangesClassDefinitions2: packageName [
+	^ self instVarChangeClassDefinitions2: packageName in: Dictionary new
+]
+
+{ #category : 'support - instVarChanges definitions' }
+RwLoadingTest >> instVarChangesClassDefinitions3: packageName [
+	^ self instVarChangeClassDefinitions3: packageName in: Dictionary new
+]
+
+{ #category : 'support - instVarChanges definitions' }
+RwLoadingTest >> instVarChangesClassDefinitions4: packageName [
+	^ self instVarChangeClassDefinitions4: packageName in: Dictionary new
 ]
 
 { #category : 'support' }
@@ -560,12 +1195,12 @@ RwLoadingTest >> loadAndTestPackagesNamed: packageNames before: beforePackageSet
 ]
 
 { #category : 'support' }
-RwLoadingTest >> loadAndTestPackagesNamed: packageNames loaded: packagesShouldBeLoaded using: myPackageSet [ 
+RwLoadingTest >> loadAndTestPackagesNamed: packageNames loaded: packagesShouldBeLoaded using: myPackageSet [
 
-	|  imagePackageSet1 diff1 imagePackageSet2 diff2 |
+	| imagePackageSet1 diff1 imagePackageSet2 diff2 |
 	Rowan updateLoadedPackages.
 	packagesShouldBeLoaded
-		ifFalse: [  packageNames do: [:name | self assertAbsenceOfPackage: name ] ].
+		ifFalse: [ packageNames do: [ :name | self assertAbsenceOfPackage: name ] ].
 	imagePackageSet1 := self definitionsOfLoadedPackages: packageNames.
 	diff1 := myPackageSet compareAgainstBase: imagePackageSet1.
 	self deny: diff1 isEmpty.
@@ -579,26 +1214,6 @@ RwLoadingTest >> loadAndTestPackagesNamed: packageNames loaded: packagesShouldBe
 RwLoadingTest >> loadAndTestPackagesNamed: packageNames using: myPackageSet [
 
 	self loadAndTestPackagesNamed: packageNames loaded: false using: myPackageSet
-]
-
-{ #category : 'support' }
-RwLoadingTest >> methodDefsFromSpec: specArray [
-  | dict |
-  dict := Dictionary new.
-  specArray
-    do: [ :spec | 
-      | selector protocol source |
-      selector := (spec at: 1) asSymbol.
-      protocol := (spec at: 2) asString.
-      source := (spec at: 3) asString.
-      dict
-        at: selector
-        put:
-          (RwMethodDefinition
-            withProperties:
-              (Dictionary with: 'selector' -> selector with: 'protocol' -> protocol)
-            source: source) ].
-  ^ dict
 ]
 
 { #category : 'support - methodDeletion definitions' }
@@ -737,8 +1352,183 @@ RwLoadingTest >> package2Definition [
 		classExtensions: Dictionary new
 ]
 
+{ #category : 'support - poolDictionaryChanges definitions' }
+RwLoadingTest >> poolDictionaryChangeClassDefinitions1: packageName in: classDefinitionDictionary [
+	"Pool Dictionary Changes: "
+
+	^ classDefinitionDictionary
+		at: 'TestPoolDictionaryClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestPoolDictionaryClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		yourself
+]
+
+{ #category : 'support - poolDictionaryChanges definitions' }
+RwLoadingTest >> poolDictionaryChangeClassDefinitions2: packageName in: classDefinitionDictionary [
+	"Pool Dictionary Changes: add PD1"
+
+	^ classDefinitionDictionary
+		at: 'TestPoolDictionaryClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestPoolDictionaryClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools: {(PoolDictionaryDictionary at: #'PoolDictionary1')}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		yourself
+]
+
+{ #category : 'support - poolDictionaryChanges definitions' }
+RwLoadingTest >> poolDictionaryChangeClassDefinitions3: packageName in: classDefinitionDictionary [
+	"Pool Dictionary Changes: add PD2"
+
+	^ classDefinitionDictionary
+		at: 'TestPoolDictionaryClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestPoolDictionaryClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools:
+									{(PoolDictionaryDictionary at: #'PoolDictionary1').
+									(PoolDictionaryDictionary at: #'PoolDictionary2')}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		yourself
+]
+
+{ #category : 'support - poolDictionaryChanges definitions' }
+RwLoadingTest >> poolDictionaryChangeClassDefinitions4: packageName in: classDefinitionDictionary [
+	"Pool Dictionary Changes: add PD3 and remove PD1"
+
+	^ classDefinitionDictionary
+		at: 'TestPoolDictionaryClass'
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: 'TestPoolDictionaryClass'
+								super: 'Object'
+								instvars: {}
+								classinstvars: {}
+								classvars: {}
+								comment: 'a comment'
+								pools:
+									{(PoolDictionaryDictionary at: #'PoolDictionary2').
+									(PoolDictionaryDictionary at: #'PoolDictionary3')}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions: Dictionary new);
+		yourself
+]
+
+{ #category : 'support - poolDictionaryChanges definitions' }
+RwLoadingTest >> poolDictionaryChangesClassDefinitions1: packageName [
+	^ self poolDictionaryChangeClassDefinitions1: packageName in: Dictionary new
+]
+
+{ #category : 'support - poolDictionaryChanges definitions' }
+RwLoadingTest >> poolDictionaryChangesClassDefinitions2: packageName [
+	^ self poolDictionaryChangeClassDefinitions2: packageName in: Dictionary new
+]
+
+{ #category : 'support - poolDictionaryChanges definitions' }
+RwLoadingTest >> poolDictionaryChangesClassDefinitions3: packageName [
+	^ self poolDictionaryChangeClassDefinitions3: packageName in: Dictionary new
+]
+
+{ #category : 'support - poolDictionaryChanges definitions' }
+RwLoadingTest >> poolDictionaryChangesClassDefinitions4: packageName [
+	^ self poolDictionaryChangeClassDefinitions4: packageName in: Dictionary new
+]
+
+{ #category : 'support' }
+RwLoadingTest >> propertiesForClassNamed: className super: superClassName instvars: instvars classinstvars: classinstvars classvars: classvars comment: comment pools: pools inPackage: packageName [
+
+	^ self
+		propertiesForClassNamed: className
+		super: superClassName
+		instvars: instvars
+		classinstvars: classinstvars
+		classvars: classvars
+		comment: comment
+		gs_SymbolDictionary: self _symbolDictionaryName asString
+		pools: pools
+		type: 'normal'
+		gs_options: {}
+		inPackage: packageName
+]
+
+{ #category : 'support' }
+RwLoadingTest >> propertiesForClassNamed: className super: superClassName instvars: instvars classinstvars: classinstvars classvars: classvars type: type gs_options: gs_options inPackage: packageName [
+
+	^ self
+		propertiesForClassNamed: className
+		super: superClassName
+		instvars: instvars
+		classinstvars: classinstvars
+		classvars: classvars
+		comment:
+			'I am a class generated by Cypress tests. My name is ' , className
+				, ', what''s yours?'
+		gs_SymbolDictionary: self _symbolDictionaryName asString
+		pools: {}
+		type: type
+		gs_options: gs_options
+		inPackage: packageName
+]
+
+{ #category : 'support - simple definitions' }
+RwLoadingTest >> propertiesForSimpleClassNamed: className inPackage: packageName [
+
+	| dict |
+	dict := Dictionary new.
+	dict
+		at: 'category' put: packageName;
+		at: 'classinstvars' put: Array new;
+		at: 'classvars' put: Array new;
+		at: 'comment'
+			put:
+				'I am a class generated by Cypress tests. My name is ' , className
+						, ', what''s yours?';
+		at: 'gs_SymbolDictionary' put: self _symbolDictionaryName asString;
+		at: 'instvars'
+			put: (Array with: 'iv1In' , className with: 'iv2In' , className);
+		at: 'name' put: className;
+		at: 'pools' put: Array new;
+		at: 'superclass' put: 'Object';
+		at: 'type' put: 'normal'.
+	^ dict
+]
+
 { #category : 'support - classInitialization definitions' }
-RwLoadingTest >> properiesOfClassInitializationClassNamed: className inPackage: packageName [
+RwLoadingTest >> propertiesOfClassInitializationClassNamed: className inPackage: packageName [
   ^ self
     propertiesForClassNamed: className
     super: 'Object'
@@ -752,101 +1542,6 @@ RwLoadingTest >> properiesOfClassInitializationClassNamed: className inPackage: 
     inPackage: packageName
 ]
 
-{ #category : 'support' }
-RwLoadingTest >> propertiesForClassNamed: className super: superClassName instvars: instvars classinstvars: classinstvars classvars: classvars comment: comment gs_SymbolDictionary: gs_SymbolDictionary pools: pools type: type gs_options: gs_options inPackage: packageName [
-  | dict |
-  dict := Dictionary new.
-  dict
-    at: 'category' put: packageName;
-    at: 'classinstvars' put: classinstvars;
-    at: 'classvars' put: classvars;
-    at: 'comment' put: comment;
-    at: 'gs_SymbolDictionary' put: gs_SymbolDictionary;
-    at: 'instvars' put: instvars;
-    at: 'name' put: className;
-    at: 'pools' put: pools;
-    at: 'super' put: superClassName;
-    at: 'type' put: type.
-  (gs_options _isArray and: [ gs_options isEmpty not ])
-    ifTrue: [ 
-      dict
-        at: 'gs_options'
-        put:
-          (gs_options collect: [ :each | each asString ]) asSortedCollection asArray ].
-  ^ dict
-]
-
-{ #category : 'support' }
-RwLoadingTest >> propertiesForClassNamed: className super: superClassName instvars: instvars classinstvars: classinstvars classvars: classvars comment: comment pools: pools inPackage: packageName [
-  ^ self
-    propertiesForClassNamed: className
-    super: superClassName
-    instvars: instvars
-    classinstvars: classinstvars
-    classvars: classvars
-    comment: comment
-    gs_SymbolDictionary: 'CypressTestData'
-    pools: pools
-    type: 'normal'
-    gs_options: {}
-    inPackage: packageName
-]
-
-{ #category : 'support' }
-RwLoadingTest >> propertiesForClassNamed: className super: superClassName instvars: instvars classinstvars: classinstvars classvars: classvars type: type gs_options: gs_options inPackage: packageName [
-  ^ self
-    propertiesForClassNamed: className
-    super: superClassName
-    instvars: instvars
-    classinstvars: classinstvars
-    classvars: classvars
-    comment:
-      'I am a class generated by Cypress tests. My name is ' , className
-        , ', what''s yours?'
-    gs_SymbolDictionary: 'CypressTestData'
-    pools: {}
-    type: type
-    gs_options: gs_options
-    inPackage: packageName
-]
-
-{ #category : 'support - simple definitions' }
-RwLoadingTest >> propertiesForSimpleClassNamed: className inPackage: packageName [
-
-	| dict |
-	dict := Dictionary new.
-	dict
-		at: 'category' put: packageName;
-		at: 'classinstvars' put: Array new;
-		at: 'classvars' put: Array new;
-		at: 'comment'
-			put: 'I am a class generated by Cypress tests. My name is ' , className
-					, ', what''s yours?';
-		at: 'gs_SymbolDictionary' put: 'CypressTestData';
-		at: 'instvars'
-			put: (Array with: 'iv1In' , className with: 'iv2In' , className);
-		at: 'name' put: className;
-		at: 'pools' put: Array new;
-		at: 'super' put: 'Object';
-		at: 'type' put: 'normal'.
-	^dict
-]
-
-{ #category : 'running' }
-RwLoadingTest >> setUp [
-
-	"Remove the CypressTestData symbol dictionary, if present"
-
-	| user symList dict index |
-	user := System myUserProfile.
-	symList := user symbolList.
-	dict := symList objectNamed: #CypressTestData.
-	dict
-		ifNotNil: 
-			[index := user symbolList indexOf: dict.
-			index > 0 ifTrue: [user removeDictionaryAt: index]]
-]
-
 { #category : 'support - simple definitions' }
 RwLoadingTest >> sillyClassMethodsForClassNamed: name [
 
@@ -856,6 +1551,112 @@ RwLoadingTest >> sillyClassMethodsForClassNamed: name [
 								with: 'protocol' -> 'silliness')
 						source: 'sillyMessage
 	^ ''You have sent a silly message to the class '' , name')
+]
+
+{ #category : 'support - singleClassVersionChange definitions' }
+RwLoadingTest >> singleClassVersionChangeClassDefinitions1: packageName className: className [
+
+	"Single class with a method #foo. and new class version"
+
+	^ Dictionary new
+		at: className
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: className
+								super: 'Object'
+								instvars: #()
+								classinstvars: #()
+								classvars: #()
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions:
+							(self methodDefsFromSpec: {#(#'foo' 'accessing' 'foo ^''foo''')}));
+		yourself
+]
+
+{ #category : 'support - singleClassVersionChange definitions' }
+RwLoadingTest >> singleClassVersionChangeClassDefinitions2: packageName className: className [
+
+	"Single class with method foo and new class version."
+
+	"add iva and preserve foo unchanged. "
+
+	^ Dictionary new
+		at: className
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: className
+								super: 'Object'
+								instvars: #('iva')
+								classinstvars: #()
+								classvars: #()
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions:
+							(self methodDefsFromSpec: {#(#'foo' 'accessing' 'foo ^''foo''')}));
+		yourself
+]
+
+{ #category : 'support - singleClassVersionChange definitions' }
+RwLoadingTest >> singleClassVersionChangeClassDefinitions3: packageName className: className [
+
+	"Single class with method foo and new class version."
+
+	"add civa and change foo. "
+
+	^ Dictionary new
+		at: className
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: className
+								super: 'Object'
+								instvars: #('iva')
+								classinstvars: #('civa')
+								classvars: #()
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions:
+							(self methodDefsFromSpec: {#(#'foo' 'accessing' 'foo ^''bar''')}));
+		yourself
+]
+
+{ #category : 'support - singleClassVersionChange definitions' }
+RwLoadingTest >> singleClassVersionChangeClassDefinitions4: packageName className: className [
+
+	"Single class with method foo and new class version."
+
+	"add civa and change protocol of foo. "
+
+	^ Dictionary new
+		at: className
+			put:
+				(RwClassDefinition
+						withProperties:
+							(self
+								propertiesForClassNamed: className
+								super: 'Object'
+								instvars: #('iva')
+								classinstvars: #('civa')
+								classvars: #('CVA')
+								comment: 'a comment'
+								pools: {}
+								inPackage: packageName)
+						classMethodDefinitions: Dictionary new
+						instanceMethodDefinitions:
+							(self methodDefsFromSpec: {#(#'foo' 'fooing' 'foo ^''foo''')}));
+		yourself
 ]
 
 { #category : 'tests' }
@@ -870,6 +1671,31 @@ RwLoadingTest >> testBasicLoading [
     addPackage: (self basicPackageDefinition: packageName);
     yourself.
   self loadAndTestPackagesNamed: packageNames using: myPackageSet
+]
+
+{ #category : 'tests' }
+RwLoadingTest >> testClassAdd [
+  "test class addition"
+
+  | packageName packageNames myPackageSet className testClass testInstance loadedClass |
+  packageName := 'ClassAdditionTestPackage'.
+  className := 'TestClassAdditionClass'.
+  packageNames := {packageName}.
+  myPackageSet := RwPackageSetDefinition new.
+  myPackageSet
+    addPackage:
+        (self
+            methodDeletionPackageDefinition: packageName
+            className: className
+            instanceMethodDefinitions:
+              (self methodDeletionInstanceMethodsForClass1: className)
+            classMethodDefinitions:
+              (self methodDeletionClassMethodsForClass1: className));
+    yourself.
+  self loadAndTestPackagesNamed: packageNames using: myPackageSet.
+  loadedClass := RwGsLoadedClass
+    existingForClass: (RwGsLoadedClass resolveClassNamed: className asSymbol).
+  self assert: loadedClass ~= RwLoadedThing absentToken
 ]
 
 { #category : 'tests' }
@@ -918,6 +1744,49 @@ RwLoadingTest >> testClassDelete [
 		before: myPackageSet 
 		after: RwPackageSetDefinition new. "the package will be deleted after load when updatePackagesFromCategories is called, because last class with that category no longer exists -- implicit delete package"
   self assert: (System myUserProfile symbolList objectNamed: className) isNil
+]
+
+{ #category : 'tests' }
+RwLoadingTest >> testClassExtension [
+
+	"test class extenstion methods"
+
+	| packageName1 packageName2 packageNames myPackageSet className testClass testInstance |
+	className := 'TestClassExtensionClass'.
+	packageName1 := 'ClassExtensionsBaseTestPackage'.
+	packageName2 := 'ClassExtensionsExtensionTestPackage'.
+	packageNames := {packageName1}.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName1)
+						classDefinitions:
+							(self
+								classExtionsClassDefinitions1: packageName1
+								className: className
+								in: Dictionary new)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: false using: myPackageSet.
+	testClass := System myUserProfile symbolList objectNamed: className.
+	testInstance := testClass new.
+	self should: [ testInstance foo ] raise: MessageNotUnderstood.
+	packageNames := {packageName2}.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName2)
+						classDefinitions: Dictionary new
+						classExtensions:
+							(self
+								classExtionsClassDefinitions2: packageName2
+								className: className
+								in: Dictionary new));
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: false using: myPackageSet.
+	self assert: testInstance foo = 'foo'
 ]
 
 { #category : 'tests' }
@@ -984,33 +1853,208 @@ RwLoadingTest >> testClassInitialization2 [
 ]
 
 { #category : 'tests' }
-RwLoadingTest >> testClassPropertyChanges [
-  "test class property changes -- skipping pools and no methods involved ... for now"
+RwLoadingTest >> testClassInstVarChanges [
+	"characterize class inst var changes with respect to new version creation"
 
-  | packageName packageNames myPackageSet className |
-  packageName := 'ClassPropertyChangesTestPackage'.
-  packageNames := {packageName}.
-  myPackageSet := RwPackageSetDefinition new.
-  myPackageSet
-    addPackage:
-        (RwPackageDefinition
-            withProperties: (Dictionary with: 'name' -> packageName)
-            classDefinitions:
-              (self classPropertyChangeClassDefinitions1: packageName)
-            classExtensions: Dictionary new);
-    yourself.
-  self loadAndTestPackagesNamed: packageNames using: myPackageSet.
-  packageNames := {packageName}.
-  myPackageSet := RwPackageSetDefinition new.
-  myPackageSet
-    addPackage:
-        (RwPackageDefinition
-            withProperties: (Dictionary with: 'name' -> packageName)
-            classDefinitions:
-              (self classPropertyChangeClassDefinitions2: packageName)
-            classExtensions: Dictionary new);
-    yourself.
-  self loadAndTestPackagesNamed: packageNames loaded: true using: myPackageSet
+	"as of GemStone 3.4, .... any change to the class inst vars creates a new class version"
+
+	| packageName packageNames myPackageSet className testClass1 testClass2 testClass3 testClass4 civs1 civs2 civs3 civs4 |
+	packageName := 'ClassInstVarChangesTestPackage'.
+	className := 'TestClassInstVarClass'.
+	packageNames := {packageName}.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions: (self classInstVarChangesClassDefinitions1: packageName)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames using: myPackageSet.
+	testClass1 := System myUserProfile symbolList objectNamed: className.
+	civs1 := testClass1 _classInstVars copy.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions: (self classInstVarChangesClassDefinitions2: packageName)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: true using: myPackageSet.
+	testClass2 := System myUserProfile symbolList objectNamed: className.
+	civs2 := testClass2 _classInstVars copy.
+	self deny: testClass2 == testClass1.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions: (self classInstVarChangesClassDefinitions3: packageName)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: true using: myPackageSet.
+	testClass3 := System myUserProfile symbolList objectNamed: className.
+	civs3 := testClass3 _classInstVars copy.
+	self deny: testClass3 == testClass1.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions: (self classInstVarChangesClassDefinitions4: packageName)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: true using: myPackageSet.
+	testClass4 := System myUserProfile symbolList objectNamed: className.
+	civs4 := testClass4 _classInstVars copy.
+	self deny: testClass4 == testClass1
+]
+
+{ #category : 'tests' }
+RwLoadingTest >> testClassPropertyChangesWithNewClassVersion1 [
+	"test class property changes that result in new class versions"
+
+	| packageName packageNames myPackageSet className |
+	packageName := 'NewClassVersionChangesTestPackage'.
+	packageNames := {packageName}.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions: (self classVersionChangeClassDefinitions1: packageName)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames using: myPackageSet.
+	packageNames := {packageName}.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions: (self classVersionChangeClassDefinitions2: packageName)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: true using: myPackageSet
+]
+
+{ #category : 'tests' }
+RwLoadingTest >> testClassPropertyChangesWithNewClassVersion2 [
+	"test class property changes that result in new class versions"
+
+	"add methods that reference the new class properties"
+
+	| packageName packageNames myPackageSet className |
+	packageName := 'NewClassVersionChangesTestPackage'.
+	packageNames := {packageName}.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions: (self classVersionChangeClassDefinitions1: packageName)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames using: myPackageSet.
+	packageNames := {packageName}.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions: (self classVersionChangeClassDefinitions3: packageName)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: true using: myPackageSet
+]
+
+{ #category : 'tests' }
+RwLoadingTest >> testClassPropertyChangesWithNoNewClassVersion [
+	"test class property changes that do no result in new class versions"
+
+	| packageName packageNames myPackageSet className |
+	packageName := 'ClassPropertyChangesTestPackage'.
+	packageNames := {packageName}.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions: (self classPropertyChangeClassDefinitions1: packageName)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames using: myPackageSet.
+	packageNames := {packageName}.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions: (self classPropertyChangeClassDefinitions2: packageName)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: true using: myPackageSet
+]
+
+{ #category : 'tests' }
+RwLoadingTest >> testClassVarChanges [
+	"characterize class var changes with respect to new version creation"
+
+	"as of GemStone 3.4, adding and removing Class Vars does not cause the 
+		creation of a new class version"
+
+	| packageName packageNames myPackageSet className testClass1 testClass2 testClass3 testClass4 cvs1 cvs2 cvs3 cvs4 |
+	packageName := 'ClassVarChangesTestPackage'.
+	className := 'TestClassVarClass'.
+	packageNames := {packageName}.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions: (self classVarChangesClassDefinitions1: packageName)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames using: myPackageSet.
+	testClass1 := System myUserProfile symbolList objectNamed: className.
+	cvs1 := testClass1 _classVars copy.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions: (self classVarChangesClassDefinitions2: packageName)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: true using: myPackageSet.
+	testClass2 := System myUserProfile symbolList objectNamed: className.
+	cvs2 := testClass2 _classVars copy.
+	self assert: testClass2 == testClass1.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions: (self classVarChangesClassDefinitions3: packageName)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: true using: myPackageSet.
+	testClass3 := System myUserProfile symbolList objectNamed: className.
+	cvs3 := testClass3 _classVars copy.
+	self assert: testClass3 == testClass1.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions: (self classVarChangesClassDefinitions4: packageName)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: true using: myPackageSet.
+	testClass4 := System myUserProfile symbolList objectNamed: className.
+	cvs4 := testClass4 _classVars copy.
+	self assert: testClass4 == testClass1
 ]
 
 { #category : 'tests' }
@@ -1033,7 +2077,9 @@ RwLoadingTest >> testCombinedChanges [
             classMethodDefinitions:
               (self combinedClassMethodsForClass1: className))
             properties:
-                (self properiesOfClassInitializationClassNamed: className inPackage: packageName);
+                (self
+                    propertiesOfClassInitializationClassNamed: className
+                    inPackage: packageName);
             yourself);
     at: deletedClassName
       put:
@@ -1046,7 +2092,7 @@ RwLoadingTest >> testCombinedChanges [
               (self combinedClassMethodsForClass1: deletedClassName))
             properties:
                 (self
-                    properiesOfClassInitializationClassNamed: deletedClassName
+                    propertiesOfClassInitializationClassNamed: deletedClassName
                     inPackage: packageName);
             yourself);
     yourself.
@@ -1079,7 +2125,9 @@ RwLoadingTest >> testCombinedChanges [
             classMethodDefinitions:
               (self combinedClassMethodsForClass2: className))
             properties:
-                (self properiesOfClassInitializationClassNamed: className inPackage: packageName);
+                (self
+                    propertiesOfClassInitializationClassNamed: className
+                    inPackage: packageName);
             yourself);
     yourself.
   myPackageSet := RwPackageSetDefinition new
@@ -1100,6 +2148,65 @@ RwLoadingTest >> testCombinedChanges [
     assert:
         (testClass compiledMethodAt: #'testInstanceMethod2' otherwise: false) == false;
     assert: testInstance testInstanceMethod3 = 2
+]
+
+{ #category : 'tests' }
+RwLoadingTest >> testInstVarChanges [
+	"characterize class inst var changes with respect to new version creation"
+
+	"as of GemStone 3.4, .... any change to the inst vars creates a new class version"
+
+	| packageName packageNames myPackageSet className testClass1 testClass2 testClass3 testClass4 ivs1 ivs2 ivs3 ivs4 |
+	packageName := 'InstVarChangesTestPackage'.
+	className := 'TestInstVarClass'.
+	packageNames := {packageName}.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions: (self instVarChangesClassDefinitions1: packageName)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames using: myPackageSet.
+	testClass1 := System myUserProfile symbolList objectNamed: className.
+	ivs1 := testClass1 _instVarNames copy.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions: (self instVarChangesClassDefinitions2: packageName)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: true using: myPackageSet.
+	testClass2 := System myUserProfile symbolList objectNamed: className.
+	ivs2 := testClass2 _instVarNames copy.
+	self deny: testClass2 == testClass1.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions: (self instVarChangesClassDefinitions3: packageName)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: true using: myPackageSet.
+	testClass3 := System myUserProfile symbolList objectNamed: className.
+	ivs3 := testClass3 _instVarNames copy.
+	self deny: testClass3 == testClass1.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions: (self instVarChangesClassDefinitions4: packageName)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: true using: myPackageSet.
+	testClass4 := System myUserProfile symbolList objectNamed: className.
+	ivs4 := testClass4 _instVarNames copy.
+	self deny: testClass4 == testClass1
 ]
 
 { #category : 'tests' }
@@ -1205,6 +2312,69 @@ RwLoadingTest >> testMethodProtocolChange [
 ]
 
 { #category : 'tests' }
+RwLoadingTest >> testPoolDictionaryChanges [
+	"characterize pool dictionary changes with respect to new version creation"
+
+	"as of GemStone 3.4, .... "
+
+	| packageName packageNames myPackageSet className testClass1 testClass2 testClass3 testClass4 pds1 pds2 pds3 pds4 |
+	packageName := 'TestPoolDictionaryTestPackage'.
+	className := 'TestPoolDictionaryClass'.
+	packageNames := {packageName}.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions:
+							(self poolDictionaryChangesClassDefinitions1: packageName)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames using: myPackageSet.
+	testClass1 := System myUserProfile symbolList objectNamed: className.
+	pds1 := testClass1 _poolDictionaries copy.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions:
+							(self poolDictionaryChangesClassDefinitions2: packageName)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: true using: myPackageSet.
+	testClass2 := System myUserProfile symbolList objectNamed: className.
+	pds2 := testClass2 _poolDictionaries copy.
+	self deny: testClass2 == testClass1.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions:
+							(self poolDictionaryChangesClassDefinitions3: packageName)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: true using: myPackageSet.
+	testClass3 := System myUserProfile symbolList objectNamed: className.
+	pds3 := testClass3 _poolDictionaries copy.
+	self deny: testClass3 == testClass1.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions:
+							(self poolDictionaryChangesClassDefinitions4: packageName)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: true using: myPackageSet.
+	testClass4 := System myUserProfile symbolList objectNamed: className.
+	pds4 := testClass4 _poolDictionaries copy.
+	self deny: testClass4 == testClass1
+]
+
+{ #category : 'tests' }
 RwLoadingTest >> testSimpleLoading [
 	"validate functionality loading a simple class"
 
@@ -1216,4 +2386,139 @@ RwLoadingTest >> testSimpleLoading [
 		addPackage: self package2Definition.
 	self loadAndTestPackagesNamed: packageNames using: myPackageSet.
 
+]
+
+{ #category : 'tests' }
+RwLoadingTest >> testSingleClassVersionChange1 [
+
+	"add an instance variable to a class that has a single method"
+
+	"No automatic instance migration"
+
+	| packageName packageNames myPackageSet className testClass1 testInstance1 testClass2 testInstance2 |
+	packageName := 'SingleClassVersionChangeTestPackage'.
+	className := 'TestSingleClassNewVersions'.
+	packageNames := {packageName}.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions:
+							(self
+								singleClassVersionChangeClassDefinitions1: packageName
+								className: className)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: false using: myPackageSet.
+	testClass1 := System myUserProfile symbolList objectNamed: className.
+	testInstance1 := testClass1 new.
+	self assert: testInstance1 foo = 'foo'.
+	packageNames := {packageName}.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions:
+							(self
+								singleClassVersionChangeClassDefinitions2: packageName
+								className: className)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: true using: myPackageSet.
+	testClass2 := System myUserProfile symbolList objectNamed: className.
+	testInstance2 := testClass2 new.
+	self deny: testClass2 == testClass1.
+	self assert: testInstance2 foo = 'foo'
+]
+
+{ #category : 'tests' }
+RwLoadingTest >> testSingleClassVersionChange2 [
+
+	"add a class instance variable to a class that has a single method and change the method"
+
+	"No automatic instance migration"
+
+	| packageName packageNames myPackageSet className testClass1 testInstance1 testClass2 testInstance2 |
+	packageName := 'SingleClassVersionChangeTestPackage'.
+	className := 'TestSingleClassNewVersions'.
+	packageNames := {packageName}.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions:
+							(self
+								singleClassVersionChangeClassDefinitions2: packageName
+								className: className)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: false using: myPackageSet.
+	testClass1 := System myUserProfile symbolList objectNamed: className.
+	testInstance1 := testClass1 new.
+	self assert: testInstance1 foo = 'foo'.
+	packageNames := {packageName}.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions:
+							(self
+								singleClassVersionChangeClassDefinitions3: packageName
+								className: className)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: true using: myPackageSet.
+	testClass2 := System myUserProfile symbolList objectNamed: className.
+	testInstance2 := testClass2 new.
+	self deny: testClass2 == testClass1.
+	self assert: testInstance2 foo = 'bar'
+]
+
+{ #category : 'tests' }
+RwLoadingTest >> testSingleClassVersionChange3 [
+
+	"add a class instance variable to a class that has a single method and change the protocol of the method"
+
+	"No automatic instance migration"
+
+	| packageName packageNames myPackageSet className testClass1 testInstance1 testClass2 testInstance2 |
+	packageName := 'SingleClassVersionChangeTestPackage'.
+	className := 'TestSingleClassNewVersions'.
+	packageNames := {packageName}.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions:
+							(self
+								singleClassVersionChangeClassDefinitions2: packageName
+								className: className)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: false using: myPackageSet.
+	testClass1 := System myUserProfile symbolList objectNamed: className.
+	testInstance1 := testClass1 new.
+	self assert: testInstance1 foo = 'foo'.
+	packageNames := {packageName}.
+	myPackageSet := RwPackageSetDefinition new.
+	myPackageSet
+		addPackage:
+				(RwPackageDefinition
+						withProperties: (Dictionary with: 'name' -> packageName)
+						classDefinitions:
+							(self
+								singleClassVersionChangeClassDefinitions4: packageName
+								className: className)
+						classExtensions: Dictionary new);
+		yourself.
+	self loadAndTestPackagesNamed: packageNames loaded: true using: myPackageSet.
+	testClass2 := System myUserProfile symbolList objectNamed: className.
+	testInstance2 := testClass2 new.
+	self deny: testClass2 == testClass1.
+	self assert: testInstance2 foo = 'foo'
 ]

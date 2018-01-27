@@ -10,10 +10,20 @@ Class {
 	#classInstVars : [
 		'knownRepositories',
 		'configuration',
-		'platform'
+		'platform',
+		'knownProjects'
 	],
 	#category : 'Rowan-Core'
 }
+
+{ #category : 'public' }
+Rowan class >> addProject: aRwProjectSpecification [
+  "Register a project"
+
+  knownProjects
+    at: aRwProjectSpecification specName
+    put: aRwProjectSpecification
+]
 
 { #category : 'public' }
 Rowan class >> addRepositoryNamed: urlString [
@@ -62,18 +72,34 @@ Rowan class >> image [
 
 { #category : 'private' }
 Rowan class >> initialize [
-	"Cypress initialize."
+  "Rowan initialize."
 
-	knownRepositories := Set new.
-	platform := RwPlatform current.
-	configuration := platform defaultConfiguration.
-	platform initialize
+  knownRepositories := Set new.
+  platform := RwPlatform current.
+  configuration := platform defaultConfiguration.
+  platform initialize.
+  knownProjects := Dictionary new
+]
+
+{ #category : 'public' }
+Rowan class >> knownProjects [
+  ^ knownProjects
 ]
 
 { #category : 'public' }
 Rowan class >> knownRepositories [
 
 	^knownRepositories
+]
+
+{ #category : 'public' }
+Rowan class >> loadedPackageDefinitionsNamed: someNames [
+	"Answer a PackageSetDefinition containing packages with the given names in the image.
+ 	If any name is not a loaded package, that name is ignored."
+
+	^ (self loadedPackagesNamed: someNames) asDefinition
+		propertyAt: 'platform' put: platform;
+		yourself
 ]
 
 { #category : 'private' }
@@ -126,6 +152,12 @@ Rowan class >> packagesNamed: someNames [
 	^RwPackageSet withAll: packageRefs
 ]
 
+{ #category : 'public tools' }
+Rowan class >> packageTools [
+
+	^self platform packageTools
+]
+
 { #category : 'public' }
 Rowan class >> platform [
 
@@ -133,10 +165,29 @@ Rowan class >> platform [
 ]
 
 { #category : 'public' }
+Rowan class >> projectNamed: aString ifAbsent: absentBlock [
+  "Look up a project"
+
+  ^ knownProjects at: aString ifAbsent: absentBlock
+]
+
+{ #category : 'public tools' }
+Rowan class >> projectTools [
+
+	^self platform projectTools
+]
+
+{ #category : 'public' }
 Rowan class >> repositoryNamed: urlString [
 	"Answer a Repository"
 
 	^CypRepository onUrl: (CypUrl fromString: urlString)
+]
+
+{ #category : 'public tools' }
+Rowan class >> repositoryTools [
+
+	^self platform repositoryTools
 ]
 
 { #category : 'private' }

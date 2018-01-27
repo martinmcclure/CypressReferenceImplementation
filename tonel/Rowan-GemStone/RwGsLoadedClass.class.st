@@ -48,7 +48,7 @@ RwGsLoadedClass class >> forClass: aClass [
 RwGsLoadedClass class >> initialize [
 	"RwGsLoadedClass initialize"
 
-	ClassRegistry := KeyValueDictionary new
+	ClassRegistry := IdentityKeyValueDictionary new
 ]
 
 { #category : 'instance creation' }
@@ -277,7 +277,6 @@ RwGsLoadedClass >> updateClassTypeFromClass [
 	"For GemStone, the valid values are:
 	bytes
 	variable
-	immediate
 	normal for non-indexable pointer object"
 
 	"Must be in-synch with RwGsClassCreationPatch>>basicCreateClassFor:"
@@ -418,9 +417,10 @@ RwGsLoadedClass >> updatePoolDictionaryNamesFromClass [
 	| propertyName oldNames newNames |
 	propertyName := 'pools'.
 	oldNames := self propertyAt: propertyName.
-	newNames := (handle sharedPools collect: [:each | each name asString])
-				asSortedCollection asArray.
-	oldNames = newNames ifFalse: [self propertyAt: propertyName put: newNames]
+	newNames := (handle sharedPools collect: [ :each | each name asString ])
+		asArray.
+	oldNames = newNames
+		ifFalse: [ self propertyAt: propertyName put: newNames ]
 ]
 
 { #category : 'private-updating' }
@@ -443,13 +443,13 @@ RwGsLoadedClass >> updatePropertiesFromClass [
 
 { #category : 'private-updating' }
 RwGsLoadedClass >> updateSuperclassNameFromClass [
-
-	| oldName newName |
-	oldName := self propertyAt: 'super'.
-	newName := handle superclass 
-		ifNil: [ 'nil' ]
-		ifNotNil: [:super | super name asString].
-	oldName = newName ifFalse: [self propertyAt: 'super' put: newName]
+  | oldName newName |
+  oldName := self propertyAt: 'superclass'.
+  newName := handle superclass
+    ifNil: [ 'nil' ]
+    ifNotNil: [ :super | super name asString ].
+  oldName = newName
+    ifFalse: [ self propertyAt: 'superclass' put: newName ]
 ]
 
 { #category : 'private-updating' }

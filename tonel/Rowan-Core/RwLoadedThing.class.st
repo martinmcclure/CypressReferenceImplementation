@@ -17,11 +17,17 @@ Class {
 	#category : 'Rowan-Core'
 }
 
+{ #category : 'accessing' }
+RwLoadedThing class >> absentToken [
+
+	^AbsentToken
+]
+
 { #category : 'class initialization' }
 RwLoadedThing class >> initialize [
-	"CypLoadedThing initialize"
+  "RwLoadedThing initialize"
 
-	AbsentToken := '<absent>'
+  AbsentToken := '<absent>'
 ]
 
 { #category : 'instance creation' }

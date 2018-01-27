@@ -1,0 +1,32 @@
+RwPackageLoadSpecification {
+	#specName : 'Rowan',
+	#platformSpec : {
+		'gemstone' : RwGemStoneSpecification {
+			#symbolDictName : 'UserGlobals'
+		}
+	},
+	#specsPath : 'specs',
+	#repoSpec : RwGitRepositorySpecification {
+		#committish : 'rowan',
+		#committishType : 'branch'
+	},
+	#repoPath : 'tonel',
+	#comment : '',
+	#packageNames : [
+		'Cypress-Core',
+		'Rowan-Url',
+		'Rowan-Core',
+		'Rowan-GemStone',
+		'Rowan-Cypress',
+		'Rowan-Tests',
+		'Rowan-Tode'
+	],
+	#packageNamesToLoad : [
+		'Cypress-Core',
+		'Rowan-Url',
+		'Rowan-Core',
+		'Rowan-GemStone',
+		'Rowan-Cypress',
+		'Rowan-Tests'
+	]
+}

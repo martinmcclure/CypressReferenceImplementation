@@ -7,7 +7,7 @@ Object
 "
 Class {
 	#name : 'RwGsClassAdditionPatch',
-	#superclass : 'RwGsClassCreationPatch',
+	#superclass : 'RwGsClassPatch',
 	#instVars : [
 		'newClass',
 		'symbolAssociation'
@@ -34,17 +34,6 @@ RwGsClassAdditionPatch >> addClassToSymbolDictionary [
 ]
 
 { #category : 'actions' }
-RwGsClassAdditionPatch >> addToDictionary: aDictionary [
-	"Dictionary is class name -> classAdditionPatch. Error on duplicate name."
-
-	| name |
-	name := classDefinition key.
-	name ifNil: [self error: 'Class definition with no name.'].
-	(aDictionary includesKey: name) ifTrue: [self error: 'Duplicate name'].
-	aDictionary at: name put: self
-]
-
-{ #category : 'actions' }
 RwGsClassAdditionPatch >> createAndInstallLoadedClass [
 	"Create a LoadedClass for the new class, add it to the defining LoadedPackage."
 
@@ -61,10 +50,9 @@ RwGsClassAdditionPatch >> createAndInstallLoadedClass [
 
 { #category : 'actions' }
 RwGsClassAdditionPatch >> createClassFor: aPatchSet [
-
 	newClass := super createClassFor: aPatchSet.
-	symbolAssociation := aPatchSet associationFor: newClass name.
-	^newClass
+	symbolAssociation := aPatchSet tempAssociationFor: newClass name.
+	^ newClass
 ]
 
 { #category : 'actions' }
@@ -86,6 +74,7 @@ RwGsClassAdditionPatch >> newClass [
 
 { #category : 'actions' }
 RwGsClassAdditionPatch >> newOrExistingSymbolDictionaryNamed: dictName [
+
 	"If the current session's transient symbol list includes a dictionary with the given name, answer it.
 	Otherwise, create one, add it to the end of both transient and persistent symbol lists, and answer it."
 
@@ -93,17 +82,17 @@ RwGsClassAdditionPatch >> newOrExistingSymbolDictionaryNamed: dictName [
 	symbolName := dictName asSymbol.
 	session := GsCurrentSession currentSession.
 	symbolList := session symbolList.
-	^symbolList
-		detect: [:each | (each at: symbolName ifAbsent: [nil]) == each]
-		ifNone: 
-			[| newDict |
-			newDict := (SymbolDictionary new)
-						name: symbolName;
-						objectSecurityPolicy: symbolList objectSecurityPolicy;
-						yourself.
+	^ symbolList
+		detect: [ :each | (each at: symbolName ifAbsent: [ nil ]) == each ]
+		ifNone: [ 
+			| newDict |
+			newDict := SymbolDictionary new
+				name: symbolName;
+				objectSecurityPolicy: symbolList objectSecurityPolicy;
+				yourself.
 			symbolList addLast: newDict.
 			session userProfile symbolList addLast: newDict.
-			newDict]
+			newDict ]
 ]
 
 { #category : 'versioning' }
